@@ -201,14 +201,27 @@ Signing and submission failures are grouped into a fixed set of classes (see [`f
 
 | Class | Meaning | What to do |
 | --- | --- | --- |
-| `USER_REJECTED` | You declined the request in your wallet | Click the button again to retry |
-| `WALLET_UNAVAILABLE` | Freighter is missing, locked, or on the wrong network | Install or unlock Freighter, then reconnect |
-| `MALFORMED_TRANSACTION` | The transaction couldn't be built or simulated from the inputs | Check the amount and campaign, then try again |
-| `RPC_FAILURE` | Soroban RPC timed out or couldn't be reached | Check your connection and retry |
-| `CONTRACT_REJECTED` | The contract or ledger rejected the transaction | Check the campaign status and your balance |
+| `USER_REJECTED` | You declined the wallet connection or the signature request | Click the button again and approve the request in your wallet |
+| `WALLET_UNAVAILABLE` | Freighter is missing, locked, unreachable, or on the wrong network | Install, unlock, or switch the network, then reconnect |
+| `MALFORMED_TRANSACTION` | The transaction couldn't be built, simulated, or read back from the wallet | Check the amount and campaign, reconnect the wallet, then try again |
+| `RPC_FAILURE` | Soroban RPC timed out, rejected the submission transport, or stopped answering status polls | Check your connection, then retry; if a transaction hash is shown, confirm it on Stellar Expert first |
+| `CONTRACT_REJECTED` | The contract or ledger executed and rejected the transaction | Check the campaign status and your balance before retrying |
 | `UNKNOWN` | Anything else | Refresh the page and try again |
 
-Raw error text is kept only as a redacted diagnostic `detail`: Stellar secret seeds (`S…`) and transaction XDR are stripped and the text is truncated. The backend likewise returns structured error codes and replaces unexpected exception text with `INTERNAL_SERVER_ERROR`.
+Each class is raised from named error codes so the UI and tests can assert the class without parsing text. The exchange paths are:
+
+| Code | Class | Raised when |
+| --- | --- | --- |
+| `FREIGHTER_ACCESS_DENIED` / `USER_CANCELLED` | `USER_REJECTED` | The user closes or declines the wallet prompt |
+| `FREIGHTER_UNAVAILABLE` | `WALLET_UNAVAILABLE` | The extension probe throws, or Freighter reports it is not connected |
+| `FREIGHTER_NETWORK_MISMATCH` | `WALLET_UNAVAILABLE` | The wallet network differs from the app's configured passphrase |
+| `INVALID_TRANSACTION_PARAMS` | `MALFORMED_TRANSACTION` | Contract, address, or amount coercion fails while assembling the operation |
+| `INVALID_SIGNED_XDR` | `MALFORMED_TRANSACTION` | The wallet returns an envelope that cannot be parsed |
+| `SIMULATION_FAILED` / `SIMULATION_PREPARE_FAILED` | `MALFORMED_TRANSACTION` | The RPC simulation or fee assembly rejects the operation |
+| `SOURCE_ACCOUNT_LOAD_FAILED` / `SUBMISSION_FAILED` / `TRANSACTION_STATUS_UNAVAILABLE` / `TRANSACTION_TIMEOUT` | `RPC_FAILURE` | Transport, submission, or polling fails |
+| `TRANSACTION_FAILED` / `CONTRACT_CALL_FAILED` / `STATE_RESTORE_REQUIRED` | `CONTRACT_REJECTED` | The ledger executed the transaction and it failed, or the contract state must be restored |
+
+Raw error text is kept only as a redacted diagnostic `detail`: Stellar secret seeds (`S…`) and transaction XDR are stripped and the text is truncated. User-facing strings also pass through `safeErrorMessage()`, so even an unclassified SDK/wallet message is scrubbed before it reaches a toast or inline error. The backend likewise returns structured error codes and replaces unexpected exception text with `INTERNAL_SERVER_ERROR`.
 
 ---
 

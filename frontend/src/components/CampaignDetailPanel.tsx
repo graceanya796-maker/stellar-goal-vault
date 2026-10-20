@@ -15,6 +15,7 @@ import { useCampaignShareCard } from './CampaignShareCard';
 import { useToast } from '../hooks/useToast';
 import { ShareButtons } from './ShareButtons';
 import { useMinDisplayTime } from '../hooks/useMinDisplayTime';
+import { safeErrorMessage } from '../lib/signingErrors';
 
 interface CampaignDetailPanelProps {
   campaign: Campaign | null;
@@ -45,10 +46,7 @@ function describePledgeError(error: unknown): string {
   if (code && FEE_ESTIMATION_ERROR_CODES.has(code)) {
     return 'Could not estimate fee. Check your connection and retry.';
   }
-  if (error instanceof Error && error.message.trim().length > 0) {
-    return error.message;
-  }
-  return 'The pledge could not be completed. Please try again.';
+  return safeErrorMessage(error, 'The pledge could not be completed. Please try again.');
 }
 
 function networkName(config: AppConfig | null | undefined): string {
